@@ -12,3 +12,4 @@ what_were_covering = {1: "data (prepare and load)",
 
 # Check PyTorch version
 print(torch.__version__)
+print("Hello World")
