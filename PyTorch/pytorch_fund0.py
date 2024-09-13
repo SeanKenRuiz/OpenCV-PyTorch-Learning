@@ -132,8 +132,8 @@ print(torch.matmul(tensor, tensor))
 # Can also use "@" for matrix multiplication
 print(tensor @ tensor)
 
-#print(torch.cuda.is_available())
+print(torch.cuda.is_available())
 
-#device = "cuda" if torch.cuda.is_available() else "cpu"
+device = "cuda" if torch.cuda.is_available() else "cpu"
 
-#print(device)
+print(device)
