@@ -586,3 +586,401 @@ model_1_results = eval_model(model=model_1,
                              loss_fn=loss_fn,
                              accuracy_fn=accuracy_fn)
 print(model_1_results)
+
+#
+### Model 2: Building a Convolutional Neural Network (CNN)
+# ////////////////////////////////////////////////////////
+
+"""
+CNN's are also known as ConvNets
+CNN's are known for their capabilities to find patterns in visual data
+"""
+# Create a convolutional neural network
+class FashionMNISTModelV2(nn.Module):
+    """
+    Model architecture that replicates the TinyVGG
+    model from CNN explainer website.
+    """
+
+    def __init__(self,
+                input_shape: int,
+                hidden_units:int,
+                output_shape:int,
+                ):
+        super().__init__()
+        self.conv_block_1 = nn.Sequential(
+            # Create a convolutional layer
+            nn.Conv2d(in_channels=input_shape,
+                      out_channels=hidden_units,
+                      kernel_size=3,
+                      stride=1,
+                      padding=1), # values we can set ourselves in our NN's are called hyperparameters
+            nn.ReLU(),
+            nn.Conv2d(in_channels=hidden_units,
+                      out_channels=hidden_units,
+                      kernel_size=3,
+                      stride=1,
+                      padding=1),
+            nn.ReLU(),
+            nn.MaxPool2d(kernel_size=2)
+        )
+        self.conv_block_2 = nn.Sequential(
+            nn.Conv2d(in_channels=hidden_units,
+                      out_channels=hidden_units,
+                      kernel_size=3,
+                      stride=1,
+                      padding=1),
+            nn.ReLU(),
+            nn.Conv2d(in_channels=hidden_units,
+                      out_channels=hidden_units,
+                      kernel_size=3,
+                      stride=1,
+                      padding=1),
+            nn.ReLU(),
+            nn.MaxPool2d(kernel_size=2)
+        )
+        self.classifier = nn.Sequential(
+            nn.Flatten(),
+            nn.Linear(in_features=hidden_units*7*7, # there's a trick to calculating this...
+                      out_features=output_shape)
+        )
+    
+    def forward(self, x):
+        x = self.conv_block_1(x)
+        #print(f"Output shape of conv_block_1: {x.shape}")
+        x = self.conv_block_2(x)
+        #print(f"Output shape of conv_block_2: {x.shape}")
+        x = self.classifier(x)
+        #print(f"Output shape of classifier {x.shape}")
+
+        return x
+    
+torch.manual_seed(42)
+model_2 = FashionMNISTModelV2(input_shape=1,
+                            hidden_units=10,
+                            output_shape=len(class_names)).to(device)
+
+# 7.25
+plt.imshow(image.squeeze(), cmap="gray")
+plt.show()
+
+# Pass image through model
+model_2(image.unsqueeze(0).to(device))
+
+print(model_2)
+# ///
+
+### 7.1 Stepping through 'nn.Conv2d()'
+torch.manual_seed(42)
+
+# Creata batch of images
+images = torch.rand(size=(32, 3, 64, 64))
+test_image = images[0]
+
+print(f"Image batch shape: {images.shape}")
+print(f"Single image shape: {test_image.shape}")
+print(f"Test shape:\n {test_image.shape}")
+
+#print(model_2.state_dict())
+
+torch.manual_seed(42)
+# Create a single Conv2d layer
+conv_layer = nn.Conv2d(in_channels=3,
+                       out_channels=10,
+                       kernel_size=3,
+                       stride=1,
+                       padding=0)
+
+print(test_image.shape)
+# # Pass the data through the convolutional layer
+conv_output = conv_layer(test_image.unsqueeze(0))
+print(conv_output.shape)
+
+### 7.2 Stepping through nn.MaxPool2d()
+
+print(f"Test image original shape: {test_image.shape}")
+print(f"Test image with unsqueezed dimension:\n {test_image.unsqueeze(0).shape}")
+
+# Create a sample nn.MaxPool2d layer
+max_pool_layer = nn.MaxPool2d(kernel_size=2)
+
+# Pass data through just the conv_layer
+test_image_through_conv = conv_layer(test_image.unsqueeze(dim=0))
+print(f"Shape after going through conv_layer: {test_image_through_conv.shape}")
+
+# Pass data through the max pool layer
+test_image_through_conv_and_max__pool = max_pool_layer(test_image_through_conv)
+print(f"Shape after going through conv_layer() and max_pool_layer(): {test_image_through_conv_and_max__pool.shape}")
+
+
+torch.manual_seed(42)
+# Create a random tenssor with a similar number of dimenstions to our images
+random_tensor = torch.randn(size=(1, 1, 2, 2))
+print(f"\nRandom tensor:\n{random_tensor}")
+print(f"Random tensor shape: {random_tensor.shape}")
+
+# create a max pool layer
+max_pool_layer = nn.MaxPool2d(kernel_size=2)
+
+# Pass the random tensor through the max pool layer
+max_pool_tensor = max_pool_layer(random_tensor)
+print(f"\nMax pool tensor:\n {max_pool_tensor}")
+print(f"Max pool tensor shape: {max_pool_tensor.shape}")
+print(random_tensor)
+
+#
+### 7.3 Setup a loss function and optimizer for 'model_2'
+#
+
+# Setup loss function & eval metrics & optimizer
+from helper_functions import accuracy_fn
+
+loss_fn = nn.CrossEntropyLoss()
+optimizer = torch.optim.SGD(params=model_2.parameters(),
+                            lr=0.1)
+
+### 7.4 Training and testing model_2 using our training and test functions
+torch.manual_seed(42)
+torch.cuda.manual_seed(42)
+
+# Measure time
+from timeit import default_timer as timer
+train_time_start_model_2 = timer()
+
+# Train and test model
+epochs = 3
+for epoch in tqdm(range(epochs)):
+    train_step(model=model_2,
+               data_loader=train_dataloader,
+               loss_fn=loss_fn,
+               optimizer=optimizer,
+               accuracy_fn=accuracy_fn,
+               device=device)
+    test_step(model=model_2,
+              data_loader=test_dataloader,
+              loss_fn=loss_fn,
+              accuracy_fn=accuracy_fn,
+              device=device)
+    
+train_time_end_model_2 = timer()
+total_train_time_model_2 = print_train_time(start=train_time_start_model_2,
+                                            end=train_time_end_model_2,
+                                            device=device)
+
+# Get model_2 results
+model_2_results = eval_model(
+    model=model_2,
+    data_loader=test_dataloader,
+    loss_fn=loss_fn,
+    accuracy_fn=accuracy_fn
+)
+
+print(model_2_results)
+
+import pandas as pd
+compare_results = pd.DataFrame([model_0_results,
+                                model_1_results,
+                                model_2_results])
+
+print(compare_results)
+
+# Add training time to results comparison
+compare_results["training_time"] = [total_train_time_model_0,
+                                    total_train_time_model_1,
+                                    total_train_time_model_2]
+
+print(compare_results)
+
+# Visualize our model results
+compare_results.set_index("model_name")["model_acc"].plot(kind="barh")
+plt.xlabel("accuracy (%)")
+plt.ylabel("model");
+plt.show()
+
+# 9. Make and evaluate random predictions with best model
+def make_predictions(model: torch.nn.Module,
+                     data:list,
+                     device: torch.device = device):
+    pred_probs = []
+    model.eval()
+    with torch.inference_mode():
+        for sample in data:
+            # Prepare the sample (add a batch dimension and pass to target device)
+            sample = torch.unsqueeze(sample, dim=0).to(device) # Add an extra dimension and send sample to device
+
+            # Forward pass (model outputs raw logits)
+            pred_logit = model(sample)
+
+            # Get prediction probability (logit -> prediction probability)
+            pred_prob = torch.softmax(pred_logit.squeeze(), dim=0) # note: perform softmax on the "logits" dimension (in this case we have a batch size of 1, so we can perform on dim=0)
+
+            # Get pred_prob off the GPU for further calculation
+            pred_probs.append(pred_prob.cpu())
+
+    # Stack the pred_probs to turn list into a tensor
+    return torch.stack(pred_probs)
+
+img, label = test_data[0][:10]
+print(img.shape, label)
+
+import random
+random.seed(42)
+test_samples = []
+test_labels = []
+for sample, label in random.sample(list(test_data), k=9):
+    test_samples.append(sample)
+    test_labels.append(label)
+
+# View the first sample shape
+print(test_samples[0].shape)
+
+plt.imshow(test_samples[0].squeeze(), cmap="gray")
+plt.title(class_names[test_labels[0]])
+plt.show()
+
+# Make predictions
+pred_probs = make_predictions(model=model_2,
+                              data=test_samples)
+
+# View first two prediction probabilities
+print(pred_probs[:2])
+
+# Convert prediciton probabilities to labels
+pred_classes = pred_probs.argmax(dim=1)
+print(pred_classes)
+
+# Are our predictions in the same form as our test labels?
+print(test_labels, pred_classes)
+
+# Plot predictions
+plt.figure(figsize=(9,9))
+nrows = 3
+ncols = 3
+for i, sample in enumerate(test_samples):
+    # Create subplot
+    plt.subplot(nrows, ncols, i+1)
+
+    # Plot the target image
+    plt.imshow(sample.squeeze(), cmap="gray")
+
+    # Find the prediction (in text form, e.g. "Sandal")
+    pred_label = class_names[pred_classes[i]]
+
+    # Get the truth label
+    truth_label = class_names[test_labels[i]]
+
+    # Create a title for the plot
+    title_text = f"Pred: {pred_label} | Truth: {truth_label}"
+
+    # Check for equality between pred and truth and change color of title text
+    if pred_label == truth_label:
+        plt.title(title_text, fontsize=10, c="g") # green text if same as truth
+    else:
+        plt.title(title_text, fontsize=10, c="r")
+
+plt.show()
+
+#
+## 10. Making a confusion matrix for further prediction evaluation
+# 
+"""
+A confusion matrix is a fantastic way of evaluating your classification models visually
+
+1. Make predictions with our trained model on the test dataset
+2. Make a confusion matrix
+3. Plot the confusion matrix using "mlxtend.plotting.plot_confusion_matrix()
+"""
+
+# Import tqdm.auto
+from tqdm.auto import tqdm
+
+# 1. Make predictions with trained model
+y_preds = []
+model_2.eval()
+with torch.inference_mode():
+    for X, y in tqdm(test_dataloader, desc="Making predictions..."):
+        # Send the data and targets to target device
+        X, y = X.to(device), y.to(device)
+        # Do the forward pass
+        y_logit = model_2(X)
+        # Turn predictions from logits -> predictions
+        y_pred = torch.softmax(y_logit.squeeze(), dim=0).argmax(dim=1)
+        # Put prediction on CPU for evaluation
+        y_preds.append(y_pred.cpu())
+
+# Concatenlate list of predictions into a tensor
+#print(y_preds)
+y_pred_tensor = torch.cat(y_preds)
+print(y_pred_tensor[:10])
+
+import mlxtend
+import torchmetrics
+
+from torchmetrics import ConfusionMatrix
+from mlxtend.plotting import plot_confusion_matrix
+
+# 2. Setup confusion instance and compare predictions to targets
+confmat = ConfusionMatrix(task="multiclass",
+                          num_classes=len(class_names))
+
+confmat_tensor = confmat(preds=y_pred_tensor,
+                         target=test_data.targets)
+
+print(confmat_tensor)
+# 3. Plot the confusion matrix
+fig, ax = plot_confusion_matrix(
+    conf_mat=confmat_tensor.numpy(), # matplotlib likes numpy
+    class_names=class_names,
+    figsize=(10, 7)
+)
+plt.show()
+
+#
+## 11. Save and load best performing model
+#
+
+from pathlib import Path
+# Create model directory path
+MODEL_PATH = Path("self-learning/models")
+MODEL_PATH.mkdir(parents=True,
+                 exist_ok=True)
+
+# Create model save
+MODEL_NAME = "03_pytorch_computer_vision_model_2.pth"
+MODEL_SAVE_PATH = MODEL_PATH / MODEL_NAME
+
+print(MODEL_SAVE_PATH)
+
+# Save the model state dict
+print(f"Saving the model to {MODEL_SAVE_PATH}")
+torch.save(obj=model_2.state_dict(),
+           f=MODEL_SAVE_PATH)
+
+# Create a new instance
+torch.manual_seed(42)
+
+loaded_model_2 = FashionMNISTModelV2(input_shape=1,
+                                     hidden_units=10,
+                                     output_shape=len(class_names))
+
+# Load in the save state_dict()
+loaded_model_2.load_state_dict(torch.load(f=MODEL_SAVE_PATH))
+
+# Send the model to the target device
+loaded_model_2.to(device)
+
+#
+# Evaluate loaded model
+torch.manual_seed(42)
+
+loaded_model_2_results = eval_model(
+    model=loaded_model_2,
+    data_loader=test_dataloader,
+    loss_fn=loss_fn,
+    accuracy_fn=accuracy_fn
+)
+
+print(loaded_model_2_results)
+
+# Check if model results are close to each other
+print(torch.isclose(torch.tensor(model_2_results["model_loss"]), torch.tensor(loaded_model_2_results["model_loss"]), atol=1e-8))
